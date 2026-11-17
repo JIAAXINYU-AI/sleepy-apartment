@@ -1,0 +1,22 @@
+#overlay.dawn-wait{visibility:hidden;pointer-events:none}
+#dawnMoment{position:absolute;inset:0;z-index:12;border:0;border-radius:0;background:linear-gradient(0deg,#ffe3a84d,transparent 80%);color:#fff5d8;text-shadow:0 2px 9px #342432;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;animation:dawn-in .3s ease-out}
+#dawnMoment b{font-size:clamp(20px,3vw,42px);letter-spacing:.08em}#dawnMoment small{font-size:14px}#dawnMoment span{font-size:12px;background:#493c50c9;border-radius:20px;padding:7px 15px}
+#landscapeTip{display:none}#lift[aria-pressed="true"]{outline:2px solid #bf8554;outline-offset:2px}
+@keyframes dawn-in{from{opacity:0}to{opacity:1}}
+@media(max-width:600px) and (orientation:portrait){#landscapeTip{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff1d4;color:#664b40;padding:6px 10px;font-size:11px;flex:none}#landscapeTip button{padding:4px 8px;font-size:10px;white-space:nowrap}}
+@media(prefers-reduced-motion:reduce){#dawnMoment{animation:none}}
+/* Short landscape screens: trade the horizontal roster for a compact side deck. */
+@media(max-height:480px) and (max-width:1000px) and (orientation:landscape){
+ #playShell,#playShell.classic{height:100dvh;min-height:0;padding:3px 5px;display:flex;overflow:hidden}
+ #playShell>header,#playShell.classic>header{height:30px;min-height:30px;margin:0 0 3px}
+ #playShell header h1{font-size:15px}#playShell .actions{gap:3px}#playShell .actions button{font-size:10px;padding:5px 6px}
+ #playShell .game,#playShell.classic .game,#playShell .game.expanded{display:grid;grid-template-columns:110px minmax(0,1fr);grid-template-rows:26px 24px minmax(0,1fr) 40px;min-height:0}
+ #playShell .status{grid-row:1;grid-column:1/-1;padding:2px 9px;font-size:10px}#playShell .status strong{font-size:17px}
+ #playShell .objective,#playShell.classic .objective{grid-row:2;grid-column:1/-1;min-height:0;height:24px;max-height:24px;padding:2px 8px;font-size:9px;line-height:20px}
+ #playShell .deck,#playShell.classic .deck{grid-column:1;grid-row:3;display:grid;grid-template-columns:1fr;grid-template-rows:repeat(6,minmax(0,1fr));padding:3px;gap:3px;border:0;border-right:1px solid #bba17c}
+ #playShell .card,#playShell.classic .card{flex-direction:row;padding:1px 3px;gap:3px;min-height:0}#playShell .card .portrait,#playShell.classic .card .portrait{width:26px;height:26px}#playShell .card strong{font-size:9px}#playShell .card small{font-size:8px}
+ #playShell .stage,#playShell.classic .stage{grid-column:2;grid-row:3;display:flex;align-items:center;justify-content:center;min-height:0}
+ #playShell canvas,#playShell.classic canvas,#playShell.classic canvas.tall{height:100%;width:auto;max-width:100%;max-height:100%;object-fit:contain}
+ #playShell .toolbar,#playShell.classic .toolbar{grid-column:1/-1;grid-row:4;display:flex;flex-wrap:nowrap;min-height:0;padding:3px 6px;gap:5px}
+ #playShell .toolbar>button{font-size:9px;padding:5px}#playShell .toolbar p{font-size:9px;width:auto;margin:0}#quickCoach p{font-size:9px}#stickerTracker>summary{font-size:9px;padding:5px}
+}

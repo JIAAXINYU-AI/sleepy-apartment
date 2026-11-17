@@ -1,0 +1,64 @@
+const washerArt=new Image();washerArt.src='assets/monsters-boss.png';
+// Shared multi-lane collision: the visual footprint is also the combat footprint.
+function occupiedRows(e){return e.giant?Array.from({length:e.span},(_,i)=>e.r+i):[e.r];}
+function occupies(e,r){return e.giant?r>=e.r&&r<e.r+e.span:e.r===r;}
+function giantFrontUnit(e,r){return s.units.filter(u=>u.hp>0&&!u.transit&&u.r===r&&cx(u.c)<=e.x+45&&e.x-cx(u.c)<170).sort((a,b)=>b.c-a.c)[0];}
+function giantConfig(p){let washer=p.giant==='washer',hp=p.mini?1900:p.support?2800:washer?6600:4400;return {giant:p.giant,mini:!!p.mini,support:!!p.support,boss:true,mover:false,span:washer?3:2,hp,max:hp,speed:washer?16:14,damage:0,phase:'march',phaseLeft:8,weakRow:p.r,cycle:0,rewarded:false,stun:0,stunLock:0};}
+function spawnChallengeWave(){s.wave++;let count=6+s.wave+(level===6&&s.wave>=5?2:0);for(let i=0;i<count;i++){let pair=Math.floor(i/2),r=(pair*2+s.wave-1)%7,leader=i%2===0;let kind=s.wave<=2?(leader?0:2):leader?(pair%3===0?0:1):(pair%2?3:2);s.spawn.push({at:s.t+i*(s.wave<4?2.1:1.85),r,kind,squad:`${s.wave}-${pair}`,escort:!leader});}
+ if(s.wave===4)s.spawn.push({at:s.t+3,r:level===5?3:1,kind:0,giant:'quilt',mini:true});
+ if(s.wave===levels[level].waves){s.spawn.push({at:s.t+4,r:level===5?1:2,kind:0,giant:level===5?'quilt':'washer'});s.spawn.push({at:s.t+10,r:level===5?4:0,kind:0,giant:'quilt',support:true});}
+ s.nextWave=s.t+levels[level].gap-(s.wave>=5?3:0);hint(`第${s.wave}波！${s.wave===4?'双层洗衣怪预演：两层同时输出，拍击后追击青色弱点。':s.wave===levels[level].waves?'最终巨怪来了！先守住其他楼层，再集中火力。':'留意右侧预告，保留电量补前排。'}`);beep(200);
+}
+function challengeStep(dt){for(let e of s.enemies){if(!e.giant)continue;if(e.hp<=0){rewardGiant(e);continue;}e.phaseLeft-=dt;if(e.phaseLeft>0)continue;
+ if(e.phase==='march'){e.phase='slam';e.phaseLeft=3.5;window.gameAudio?.play('charge');if(!e.mini&&!e.support){let outside=levels[level].rows.filter(r=>!occupies(e,r));for(let i=0;i<(level===6?3:2);i++)s.spawn.push({at:s.t+3+i*1.5,r:outside[(e.cycle+i)%outside.length],kind:i%2?3:2});}hint(`${giantName(e)}蓄力！${occupiedRows(e).map(r=>rowCount()-r).join('、')}楼前排将被拍击，后排安全。`);}
+ else if(e.phase==='slam'){window.gameAudio?.play('slam');for(let r of occupiedRows(e)){let front=giantFrontUnit(e,r);if(front){let dmg=e.giant==='washer'?300:210;front.hp-=dmg;if(front.hp<=0&&window.nightlife?.run)window.nightlife.run.slamFallen=(window.nightlife.run.slamFallen||0)+1;front.flash=.35;burst(cx(front.c),cy(r),'#efd9a1',14);s.fx.push({x:cx(front.c),y:cy(r),text:'−'+dmg,life:1,color:'#b44d40'});}}e.phase='exposed';e.phaseLeft=7;window.gameAudio?.play('weak');e.weakRow=e.r+e.cycle%e.span;s.shake=.2;hint(`破绽！${rowCount()-e.weakRow}楼攻击翻倍，持续7秒，巨怪仍在推进！电梯调兵或集中放电。`);}
+ else{e.cycle++;e.phase='march';e.phaseLeft=8;}}
+}
+function challengeObjective(){let e=s.enemies.filter(e=>e.giant&&e.hp>0).sort((a,b)=>(a.phase==='slam'?0:a.phase==='exposed'?1:2)-(b.phase==='slam'?0:b.phase==='exposed'?1:2))[0];if(!e)return `困难挑战 · 第4波双层洗衣怪预演，第${levels[level].waves}波双巨怪围攻｜先保护仓鼠，预留电量补沙发。`;let rows=occupiedRows(e).map(r=>rowCount()-r).join('、');return e.phase==='slam'?`⚠ ${rows}楼 · ${Math.ceil(e.phaseLeft)}秒后拍击前排！红色区域内有危险。`:e.phase==='exposed'?`✦ ${rowCount()-e.weakRow}楼弱点 · ${Math.ceil(e.phaseLeft)}秒内攻击翻倍！其余覆盖楼层也可输出。`:`巨怪覆盖${rows}楼 · 护甲减伤中，${Math.ceil(e.phaseLeft)}秒后蓄力｜多层共享血量。`;}
+function drawChallenge(){for(let e of s.enemies){if(!e.giant||e.hp<=0)continue;for(let r of occupiedRows(e)){let weak=e.phase==='exposed'&&r===e.weakRow,slam=e.phase==='slam';if(!weak&&!slam)continue;ctx.fillStyle=weak?'#82d8b940':'#ef795745';let left=slam?Math.max(410,e.x-170):410;ctx.fillRect(left,floors[r]+6,Math.max(0,Math.min(1330,e.x+45)-left),floors[r+1]-floors[r]-12);if(weak){ctx.setLineDash([9,7]);ctx.strokeStyle='#72cbb2';ctx.lineWidth=3;ctx.strokeRect(413,floors[r]+8,914,110);ctx.setLineDash([]);text('✦ 弱点楼层 · 伤害 ×2',760,floors[r]+30,18,'#255f56','center');}if(slam)text('拍击 '+Math.ceil(e.phaseLeft)+'s',e.x-225,cy(r)-23,15,'#ac4937','center');}}
+ let bosses=s.enemies.filter(e=>e.giant&&e.hp>0);bosses.forEach((b,i)=>{let w=bosses.length>1?445:755,x=bosses.length>1?405+i*455:400;box(x,6,w,38,'#fff0d3','#b78054');text(giantName(b),x+12,30,14,'#9d4d37');let bw=w-250;box(x+145,20,bw,9,'#d2b9a0',null);box(x+145,20,bw*Math.max(0,b.hp)/b.max,9,'#bb6f58',null);text(Math.ceil(b.hp)+'',x+w-12,30,12,'#815441','right');});}
+
+function drawGiant(e){if(washerArt.complete&&washerArt.naturalWidth){drawWasher(e);return;}let top=floors[e.r]+9,bottom=floors[e.r+e.span]-10,h=bottom-top,y=(top+bottom)/2,x=e.x;let sway=Math.sin(s.t*3)*3,charge=e.phase==='slam'?Math.sin(s.t*16)*3:0;ctx.save();ctx.translate(x+charge,y+sway);if(e.flash>0)ctx.globalAlpha=.75;ctx.lineJoin='round';
+ // Slippers and flailing sleeves make the enormous silhouette read as a sleepy resident.
+ box(-77,h/2-10,65,25,'#bd8b6b','#73574a',13);box(12,h/2-10,65,25,'#bd8b6b','#73574a',13);
+ let arm=e.phase==='slam'?-50:e.phase==='exposed'?25:0;ctx.save();ctx.translate(-91,-h*.19+arm);ctx.rotate(-.25);box(-30,-15,54,78,'#dfb38a','#795c4c',23);ctx.restore();ctx.save();ctx.translate(91,-h*.19+arm);ctx.rotate(.25);box(-24,-15,54,78,'#dfb38a','#795c4c',23);ctx.restore();
+ if(e.giant==='quilt'){box(-94,-h/2,188,h,'#b8c8ab','#645b4b',27);ctx.save();ctx.beginPath();ctx.roundRect(-87,-h/2+7,174,h-14,22);ctx.clip();let colors=['#d6b49d','#e1cfac','#b1c6b0','#b7c9cf'];for(let r=0;r<e.span*3;r++)for(let c=0;c<3;c++){let xx=-87+c*58,yy=-h/2+7+r*(h-14)/(e.span*3);ctx.fillStyle=colors[(r+c)%4];ctx.fillRect(xx,yy,58,(h-14)/(e.span*3));ctx.setLineDash([3,5]);ctx.strokeStyle='#7c79614d';ctx.strokeRect(xx+4,yy+4,50,(h-14)/(e.span*3)-8);ctx.setLineDash([]);}ctx.restore();box(-66,-h/2+20,132,69,'#f0dbb5','#90785d',24);}
+ else{box(-100,-h/2,200,h,'#bdc9c3','#685e53',24);box(-89,-h/2+12,178,65,'#eee1bf','#998c70',13);for(let i=0;i<3;i++){ctx.fillStyle=['#d28b76','#dac882','#87aaa0'][i];ctx.beginPath();ctx.arc(58+i*10,-h/2+22,3,0,Math.PI*2);ctx.fill();}text('夜 间 勿 洗',0,-h/2+90,12,'#82705b','center');ctx.fillStyle='#6f9296';ctx.strokeStyle='#8a8170';ctx.lineWidth=13;ctx.beginPath();ctx.ellipse(0,5,73,h*.26,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.save();ctx.translate(0,5);ctx.rotate(e.phase==='exposed'?0:s.t*1.5);for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);box(-22,-h*.19,45,50,['#e9c4ac','#c1cdb1','#dfc390','#b6c7d5'][i],'#57777b',15);}ctx.restore();}
+ // Fabric seams and raised fists retain a playful, handmade silhouette.
+ ctx.strokeStyle='#6e6d5a55';ctx.lineWidth=1;ctx.setLineDash([3,5]);ctx.strokeRect(-83,-h/2+10,166,h-23);ctx.setLineDash([]);for(let side of [-1,1]){let fy=-h*.12+(e.phase==='slam'?-55:e.phase==='exposed'?35:0);box(side*107-24,fy-17,48,46,'#e4c8a1','#79604c',18);for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(side*107-12+i*10,fy-5);ctx.lineTo(side*107-12+i*10,fy+5);ctx.stroke();}}
+ let faceY=e.giant==='quilt'?-h/2+52:-h/2+36;ctx.strokeStyle='#655247';ctx.lineWidth=4;for(let eye of [-25,25]){ctx.beginPath();ctx.moveTo(eye-8,faceY);ctx.lineTo(eye+8,faceY+(e.phase==='slam'?(eye<0?7:-7):2));ctx.stroke();}ctx.beginPath();ctx.ellipse(0,faceY+22,e.phase==='slam'?10:5,e.phase==='exposed'?9:4,0,0,Math.PI*2);ctx.stroke();
+ if(e.phase==='exposed'){let wy=cy(e.weakRow)-y;ctx.fillStyle='#a3e0c7';ctx.strokeStyle='#3f8e79';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,wy,25+Math.sin(s.t*6)*2,0,Math.PI*2);ctx.fill();ctx.stroke();text('×2',0,wy+7,19,'#286854','center');}else{text('Z',69,-h/2+1,19,'#d5e5de','center');text('z',89,-h/2-16,13,'#d5e5de','center');}
+ if(e.stun>0)text('⚡',0,-h/2-9,25,'#9ee5ee','center');ctx.restore();text(e.phase==='slam'?'要拍下来了！':e.phase==='exposed'?'纽扣松了！':'借过…我还没醒…',x,Math.min(canvas.height-10,bottom+23),14,e.phase==='slam'?'#a63e2b':'#f2dfbd','center');}
+function drawDanger(){if(s.state==='ready')return;for(let r=0;r<rowCount();r++){let nearest=s.enemies.filter(e=>e.hp>0&&!e.dead&&!e.climb&&occupies(e,r)).sort((a,b)=>a.x-b.x)[0];if(nearest&&nearest.x<640){let urgent=nearest.x<460;ctx.save();ctx.globalAlpha=.65+Math.sin(s.t*(urgent?8:4))*.2;box(244,floors[r]+20,80,35,urgent?'#ce6957':'#e4b16e','#f5d9a1',8);text(urgent?'快守不住':'需要支援',284,floors[r]+43,13,'#fff8df','center');ctx.restore();}}}
+function drawUnitFeedback(u,x,y,age){ctx.save();
+ if(u.kind===1&&age>.8&&age<2){text('呼…',x+35,y-26,11,'#a38354','center');ctx.fillStyle='#b7dce3';ctx.beginPath();ctx.ellipse(x+24,y-12+(age-.8)*8,3,5,0,0,Math.PI*2);ctx.fill();}
+ if(u.kind===0&&age>.65&&age<1.1)text('另一只呢？',x,y-50,11,'#ad7458','center');
+ if(u.kind===4&&age<.5&&!u.pending){ctx.strokeStyle='#dcb58a';ctx.lineWidth=3;ctx.globalAlpha=1-age*2;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(x+29,y,15+i*13+age*35,-.8,.8);ctx.stroke();}ctx.globalAlpha=1;}
+ if(u.kind===3&&age<.7){ctx.globalAlpha=(1-age/.7)*.65;ctx.fillStyle='#caedf0';for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(x+36+age*55+i*12,y+8-i*7,12,7,0,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;}
+ if(u.kind===2){let ratio=u.hp/defs[2].hp;if(ratio<.65){ctx.strokeStyle='#775445';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-22,y-6);ctx.lineTo(x-9,y+2);ctx.lineTo(x-17,y+12);ctx.lineTo(x+2,y+20);ctx.stroke();}if(ratio<.3){for(let i=0;i<5;i++){ctx.fillStyle='#fff4db';ctx.beginPath();ctx.arc(x-38+i*18,y+31+Math.sin(i*5)*6,4+i%2,0,Math.PI*2);ctx.fill();}text('快散架了',x,y+52,11,'#a64d3e','center');}}
+ if(u.kind===5&&u.timer<1.2){let ready=s.enemies.some(e=>e.hp>0&&!e.climb&&occupies(e,u.r)&&e.x>cx(u.c)-35);if(ready){ctx.strokeStyle='#86d8de';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x+32,y-2,10+Math.sin(s.t*16)*3,0,Math.PI*2);ctx.stroke();text('滋…',x+29,y-23,12,'#408b94','center');}}
+ if(u.kind===1&&age<.8){for(let i=0;i<3;i++)text('✦',x-25+i*23,y-20-age*20-i%2*9,12,'#d68c36','center');}
+ if(u.kind===0&&age<.65&&!u.pending){ctx.save();ctx.translate(x-29,y+17);ctx.rotate(-.4+age);sprite(11,0,0,28,28);ctx.restore();}
+ if(u.kind===4&&u.pending){ctx.strokeStyle='#d0a57a';ctx.lineWidth=2;for(let i=0;i<2;i++){ctx.beginPath();ctx.arc(x+35,y-2,7+i*6,2.2,4);ctx.stroke();}}
+ if(u.action>-1&&age<.85){let quips=['还有一只！','加班发电！','我先躺着…','冷静一下。','几点了？！','通电，闭嘴。'];text(quips[u.kind],x,y-50-age*8,12,['#9f654c','#a27d3c','#947a56','#4b8c9d','#a36649','#478f97'][u.kind],'center');}
+ ctx.restore();}
+function drawEnemyFeedback(e){let y=enemyY(e);ctx.save();if(e.slow>0){ctx.globalAlpha=.45;ctx.fillStyle='#b7e7ef';ctx.beginPath();ctx.ellipse(e.x,y+47,40,12,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.8;for(let i=0;i<3;i++)text('❄',e.x-29+i*27,y+29+Math.sin(s.t*2+i)*5,12,'#a1dce9','center');}if(e.stun>0){ctx.strokeStyle='#8bd5e3';ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<9;i++){let xx=e.x-25+i*6,yy=y-36-(i%2?14:2);if(!i)ctx.moveTo(xx,yy);else ctx.lineTo(xx,yy);}ctx.stroke();for(let i=0;i<2;i++){let a=s.t*5+i*Math.PI;text('✦',e.x+Math.cos(a)*31,y-38+Math.sin(a)*7,13,'#e6bf61','center');}}ctx.restore();}
+
+function rewardGiant(e){if(!e.rewarded){e.rewarded=true;let reward=e.mini?100:150;s.energy+=reward;s.fx.push({x:e.x,y:cy(e.r),text:`巨怪散架！+${reward}电量`,life:1.5,color:'#39866b'});}}
+
+function drawWasher(e){
+ const top=floors[e.r]+5,bottom=floors[e.r+e.span]-5,h=bottom-top;
+ const phase=e.phase==='slam'?1:0,sw=washerArt.naturalWidth/3,sh=washerArt.naturalHeight/2;
+ const w=h*sw/sh,x=e.x,y=(top+bottom)/2,shake=phase===1?Math.sin(s.t*26)*3:Math.sin(s.t*3)*2;
+ ctx.save();if(e.span===3){ctx.fillStyle=e.phase==='slam'?'#da704c28':'#251c3133';ctx.beginPath();ctx.ellipse(x,y+h*.38,h*.48,h*.1,0,0,Math.PI*2);ctx.fill();}ctx.translate(x+shake,y);ctx.rotate(phase===0?Math.sin(s.t*3)*.012:0);
+ ctx.globalAlpha=e.flash>0?.72:1;ctx.drawImage(washerArt,phase*sw,giantSkin(e)==='quilt'?sh:0,sw,sh,-w/2,-h/2,w,h);
+ if(e.hp/e.max<.35){for(let i=0;i<4;i++){ctx.globalAlpha=.2;ctx.fillStyle='#f7e3c2';ctx.beginPath();ctx.arc(40+Math.sin(s.t+i)*15,-h*.3-((s.t*24+i*21)%70),8+i*3,0,Math.PI*2);ctx.fill();}}
+ ctx.restore();
+ for(let i=0;i<5;i++){let by=bottom-((s.t*22+i*27)%85);ctx.save();ctx.globalAlpha=.45;ctx.strokeStyle='#e5f5ec';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x-65+i*30,by,4+i%3*2,0,Math.PI*2);ctx.stroke();ctx.restore();}
+ if(phase===2){let wy=cy(e.weakRow);ctx.strokeStyle='#8df2cc';ctx.lineWidth=4;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(x-65,y+12);ctx.lineTo(x-110,wy);ctx.stroke();ctx.setLineDash([]);box(x-150,wy-19,88,38,'#d6ffec','#418c76',12);text(giantSkin(e)==='quilt'?'纽扣 ×2':'核心 ×2',x-106,wy+7,16,'#205e51','center');}
+ if(e.stun>0)text('⚡',x,top+12,24,'#80e7f3','center');
+ text(phase===1?(giantSkin(e)==='quilt'?'起床气爆发！ ':'脱水过载！ ')+Math.ceil(e.phaseLeft)+'s':phase===2?(giantSkin(e)==='quilt'?'被子漏风啦！':'舱门卡住啦！'):(giantSkin(e)==='quilt'?'再睡五分钟…':'谁的袜子堵住了？'),x,Math.min(canvas.height-8,bottom+17),16,phase===1?'#a63e2b':'#f2dfbd','center');
+}
+
+function giantSkin(e){return e.giant==='quilt'&&!e.mini&&!e.support?'quilt':'washer';}
+function giantName(e){return giantSkin(e)==='quilt'?'双层花被大王':e.span===3?'三层洗衣巨兽':'双层洗衣怪';}
